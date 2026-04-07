@@ -14,7 +14,11 @@ const QuickStat = ({ icon: Icon, label, value, color }: { icon: React.ElementTyp
   </div>
 );
 
-const BerandaScreen = () => (
+interface BerandaScreenProps {
+  onStartRecording?: (doctor: string) => void;
+}
+
+const BerandaScreen = ({ onStartRecording }: BerandaScreenProps) => (
   <div className="space-y-5">
     <div>
       <h1 className="text-xl font-bold text-foreground">Selamat Pagi! 👋</h1>
@@ -36,12 +40,14 @@ const BerandaScreen = () => (
           specialty="Endokrinologi"
           date="12 Apr 2026"
           time="10:00"
+          onRecord={onStartRecording}
         />
         <ConsultationCard
           doctorName="Dr. Budi Hartono"
           specialty="Gizi Klinik"
           date="15 Apr 2026"
           time="14:30"
+          onRecord={onStartRecording}
         />
       </div>
     </div>
