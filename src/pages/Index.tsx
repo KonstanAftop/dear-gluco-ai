@@ -1,16 +1,29 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from "react";
+import BottomNav, { type Tab } from "@/components/BottomNav";
+import BerandaScreen from "@/components/screens/BerandaScreen";
+import RiwayatScreen from "@/components/screens/RiwayatScreen";
+import PengingatScreen from "@/components/screens/PengingatScreen";
+import GlosariumScreen from "@/components/screens/GlosariumScreen";
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
+const screens: Record<Tab, React.ComponentType> = {
+  beranda: BerandaScreen,
+  riwayat: RiwayatScreen,
+  pengingat: PengingatScreen,
+  glosarium: GlosariumScreen,
+};
+
+const Index = () => {
+  const [tab, setTab] = useState<Tab>("beranda");
+  const Screen = screens[tab];
+
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
+    <div className="min-h-screen bg-background flex justify-center">
+      <div className="w-full max-w-[440px] px-4 pt-6 pb-24">
+        <Screen />
+      </div>
+      <BottomNav active={tab} onChange={setTab} />
     </div>
   );
 };
-
-const Index = PlaceholderIndex;
 
 export default Index;
