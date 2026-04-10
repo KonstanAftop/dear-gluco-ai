@@ -143,7 +143,7 @@ async def entrypoint(ctx: JobContext) -> None:
     session = AgentSession(
         stt=inference.STT("deepgram/nova-3", language="id"),
         llm=inference.LLM("openai/gpt-4o-mini"),
-        tts=inference.TTS("elevenlabs/eleven_multilingual_v2", language="id"),
+        tts=inference.TTS("openai/tts-1", voice="alloy"),
         vad=ctx.proc.userdata["vad"],
     )
 
