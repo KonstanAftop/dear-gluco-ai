@@ -1,0 +1,21 @@
+# LiveKit Agent Dependencies
+livekit-agents>=1.5.0,<2.0.0
+livekit-api>=1.1.0,<2.0.0
+livekit-plugins-openai>=1.5.0,<2.0.0
+livekit-plugins-silero>=1.5.0,<2.0.0
+
+# AI and Language Processing
+openai>=1.54.0
+
+# Environment and Configuration
+python-dotenv==1.0.1
+
+# Logging and Monitoring
+prometheus-client>=0.21.0
+
+# Medical Data Processing
+pandas>=2.2.0
+
+# Development Dependencies
+pytest>=8.0.0
+pytest-asyncio>=0.25.0

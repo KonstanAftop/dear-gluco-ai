@@ -1,0 +1,113 @@
+version: '3.8'
+
+services:
+  diabetes-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: deargluco-diabetes-agent
+    restart: unless-stopped
+    environment:
+      # LiveKit Configuration (required)
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
+      - LIVEKIT_URL=${LIVEKIT_URL}
+
+      # AI Service Configuration (at least one required)
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+
+      # Agent Configuration
+      - AGENT_NAME=${AGENT_NAME:-diabetes-consultant}
+      - AGENT_LANGUAGE=${AGENT_LANGUAGE:-id}
+      - AGENT_VOICE=${AGENT_VOICE:-alloy}
+
+      # Medical Configuration
+      - MAX_SESSION_DURATION=${MAX_SESSION_DURATION:-1800}
+      - EMERGENCY_GLUCOSE_LOW=${EMERGENCY_GLUCOSE_LOW:-54}
+      - EMERGENCY_GLUCOSE_HIGH=${EMERGENCY_GLUCOSE_HIGH:-300}
+      - URGENT_GLUCOSE_LOW=${URGENT_GLUCOSE_LOW:-70}
+      - URGENT_GLUCOSE_HIGH=${URGENT_GLUCOSE_HIGH:-250}
+
+      # Feature Flags
+      - ENABLE_GLUCOSE_MONITORING=${ENABLE_GLUCOSE_MONITORING:-true}
+      - ENABLE_SYMPTOM_ANALYSIS=${ENABLE_SYMPTOM_ANALYSIS:-true}
+      - ENABLE_MEDICATION_INFO=${ENABLE_MEDICATION_INFO:-true}
+      - ENABLE_EMERGENCY_DETECTION=${ENABLE_EMERGENCY_DETECTION:-true}
+      - ENABLE_CONVERSATION_LOGGING=${ENABLE_CONVERSATION_LOGGING:-true}
+
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - DEBUG=${DEBUG:-false}
+      - ENABLE_PROMETHEUS=${ENABLE_PROMETHEUS:-false}
+      - PROMETHEUS_PORT=${PROMETHEUS_PORT:-8080}
+
+      # Medical Compliance
+      - REQUIRE_MEDICAL_DISCLAIMER=${REQUIRE_MEDICAL_DISCLAIMER:-true}
+      - ENABLE_EMERGENCY_ESCALATION=${ENABLE_EMERGENCY_ESCALATION:-true}
+      - CONVERSATION_RETENTION_DAYS=${CONVERSATION_RETENTION_DAYS:-90}
+
+    ports:
+      # Prometheus metrics port (if enabled)
+      - "${PROMETHEUS_PORT:-8080}:8080"
+    volumes:
+      # Mount source code for development
+      - .:/app
+      # Logs
+      - ./logs:/app/logs
+    networks:
+      - diabetes-net
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "python", "-c", "import config; print('Agent healthy')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Optional: Prometheus for monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: deargluco-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    networks:
+      - diabetes-net
+    profiles:
+      - monitoring
+
+  # Optional: Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: deargluco-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana:/etc/grafana/provisioning
+    networks:
+      - diabetes-net
+    profiles:
+      - monitoring
+
+networks:
+  diabetes-net:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:
