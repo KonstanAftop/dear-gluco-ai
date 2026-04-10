@@ -1,62 +1,85 @@
-# Multi-stage build for DearGluco.ai Diabetes Agent
-FROM python:3.11-slim as base
+# This is an example Dockerfile that builds a minimal container for running LK Agents
+# For more information on the build process, see https://docs.livekit.io/agents/ops/deployment/builds/
+# syntax=docker/dockerfile:1
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
+# Use the official Python base image with Python 3.13
+# We use the slim variant to keep the image size smaller while still having essential tools
+ARG PYTHON_VERSION=3.13
+FROM python:${PYTHON_VERSION}-slim AS base
+
+# Keeps Python from buffering stdout and stderr to avoid situations where
+# the application crashes without emitting any logs due to buffering.
 ENV PYTHONUNBUFFERED=1
-ENV PYTHONPATH="/app"
 
-# Install system dependencies
+# Disable pip version check to speed up builds
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# --- Build stage ---
+# Install dependencies, build native extensions, and prepare the application
+FROM base AS build
+
+# Install build dependencies required for Python packages with native extensions
+# gcc: C compiler needed for building Python packages with C extensions
+# g++: C++ compiler needed for building Python packages with C++ extensions
+# python3-dev: Python development headers needed for compilation
+# We clean up the apt cache after installation to keep the image size down
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
-    make \
-    && rm -rf /var/lib/apt/lists/*
+    python3-dev \
+  && rm -rf /var/lib/apt/lists/*
 
-# Create app directory
+# Create a new directory for our application code
+# And set it as the working directory
 WORKDIR /app
 
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
+# Copy just the dependency files first, for more efficient layer caching
+COPY requirements.txt ./
+
+# Create a virtual environment and install Python dependencies
+# The venv keeps dependencies in /app so they can be copied to the production stage
+RUN python -m venv .venv
+ENV PATH="/app/.venv/bin:$PATH"
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy all remaining application files into the container
+# This includes source code, configuration files, and dependency specifications
+# (Excludes files specified in .dockerignore)
 COPY . .
 
-# Create non-root user for security
-RUN groupadd -r diabetes && useradd -r -g diabetes -s /bin/bash diabetes
-RUN chown -R diabetes:diabetes /app
-USER diabetes
+# Pre-download any ML models or files the agent needs
+# This ensures the container is ready to run immediately without downloading
+# dependencies at runtime, which improves startup time and reliability
+RUN python "diabetes_agent.py" download-files
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD python -c "import config; print('Agent healthy')" || exit 1
+# --- Production stage ---
+# Build tools (gcc, g++, python3-dev) are not included in the final image
+FROM base
 
-# Expose port for Prometheus metrics (if enabled)
-EXPOSE 8080
+# Create a non-privileged user that the app will run under.
+# See https://docs.docker.com/build/building/best-practices/#user
+ARG UID=10001
+RUN adduser \
+    --disabled-password \
+    --gecos "" \
+    --home "/app" \
+    --shell "/sbin/nologin" \
+    --uid "${UID}" \
+    appuser
 
-# Default command
-CMD ["python", "run_agent.py"]
+WORKDIR /app
 
-# Production stage
-FROM base as production
+# Copy the application and virtual environment with correct ownership in a single layer
+# This avoids expensive recursive chown and excludes build tools from the final image
+COPY --from=build --chown=appuser:appuser /app /app
 
-# Additional production configurations
-ENV LOG_LEVEL=INFO
-ENV DEBUG=false
+# Activate virtual environment
+ENV PATH="/app/.venv/bin:$PATH"
 
-# Development stage
-FROM base as development
+# Switch to the non-privileged user for all subsequent operations
+# This improves security by not running as root
+USER appuser
 
-# Development-specific packages
-RUN pip install --no-cache-dir \
-    pytest \
-    pytest-asyncio \
-    black \
-    flake8 \
-    mypy
-
-ENV DEBUG=true
-ENV LOG_LEVEL=DEBUG
-
-CMD ["python", "run_agent.py"]
+# Run the application
+# The "start" command tells the worker to connect to LiveKit and begin waiting for jobs.
+CMD ["python", "diabetes_agent.py", "start"]
