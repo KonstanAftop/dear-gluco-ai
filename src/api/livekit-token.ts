@@ -140,9 +140,9 @@ export async function generateTokenDevelopment(tokenRequest: TokenRequest): Prom
       canUpdateOwnMetadata: permissions.canUpdateMetadata,
     });
 
-    // Agent dispatch via token — the room is created on first join and
-    // the agent is dispatched automatically by LiveKit Cloud.
     token.roomConfig = new RoomConfiguration({
+      emptyTimeout: 30,
+      departureTimeout: 10,
       agents: [
         new RoomAgentDispatch({
           agentName: DIABETES_CONSULTATION_CONFIG.agentName,

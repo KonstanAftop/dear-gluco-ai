@@ -137,6 +137,20 @@ export function LiveKitProvider({
   const [tokenData, setTokenData] = useState<TokenResponse | null>(null);
 
   /**
+   * Disconnect room on unmount or tab close so agent workers are freed
+   */
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      room?.disconnect();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      room?.disconnect();
+    };
+  }, [room]);
+
+  /**
    * Update session duration timer
    */
   useEffect(() => {

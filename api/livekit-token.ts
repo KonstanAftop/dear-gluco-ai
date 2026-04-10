@@ -68,6 +68,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     token.roomConfig = new RoomConfiguration({
+      emptyTimeout: 30,
+      departureTimeout: 10,
       agents: [
         new RoomAgentDispatch({ agentName: 'diabetes-consultant' }),
       ],
